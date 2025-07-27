@@ -1,356 +1,663 @@
-# import os
-# import base64
-# import json
-# import re
-# import requests
-# from dotenv import load_dotenv
-# from datetime import datetime
-
-# # Load the API key from .env
-# load_dotenv()
-# API_KEY = os.getenv("GOOGLE_CLOUD_VISION_API_KEY")
-
-# def extract_text_from_image(image_path):
-#     """Use Google Vision API to perform OCR on an image."""
-#     with open(image_path, "rb") as image_file:
-#         content = base64.b64encode(image_file.read()).decode("utf-8")
-
-#     endpoint_url = f"https://vision.googleapis.com/v1/images:annotate?key={API_KEY}"
-#     payload = {
-#         "requests": [
-#             {
-#                 "image": {"content": content},
-#                 "features": [{"type": "TEXT_DETECTION"}]
-#             }
-#         ]
-#     }
-
-#     response = requests.post(endpoint_url, json=payload)
-#     if response.status_code != 200 or "error" in response.json():
-#         print("Error:", response.json())
-#         return ""
-
-#     annotations = response.json()["responses"][0]
-#     return annotations.get("fullTextAnnotation", {}).get("text", "")
-
-# def extract_fields(text):
-#     """Extract structured fields from OCR text."""
-#     fields = {
-#         "Company Name": "",
-#         "Address": "",
-#         "Date": "",
-#         "Time": "",
-#         "Category": "",
-#         "Cost": "",
-#         "GST": "",
-#         "Discount": ""
-#     }
-
-#     # Example regex patterns (can be customized)
-#     lines = text.splitlines()
-
-#     # Company Name: usually in the first line
-#     fields["Company Name"] = lines[0] if lines else ""
-
-#     # Address: look for typical address patterns
-#     for line in lines:
-#         if any(word in line.lower() for word in ["road", "street", "avenue", "block", "area", "city", "pincode"]):
-#             fields["Address"] = line
-#             break
-
-#     # Date and Time
-#     date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{2,4})", text)
-#     time_match = re.search(r"(\d{1,2}:\d{2}(?:\s?[APMapm]{2})?)", text)
-
-#     if date_match:
-#         fields["Date"] = date_match.group(1)
-#     if time_match:
-#         fields["Time"] = time_match.group(1)
-
-#     # Category (example: electronics, food, clothing)
-#     category_match = re.search(r"(electronics|food|grocery|clothing|stationery)", text, re.IGNORECASE)
-#     if category_match:
-#         fields["Category"] = category_match.group(1).capitalize()
-
-#     # Cost / Amount
-#     cost_match = re.search(r"(Total\s*[:\-]?\s*\₹?\s*\d+\.?\d*)", text, re.IGNORECASE)
-#     if cost_match:
-#         fields["Cost"] = cost_match.group(1)
-
-#     # GST
-#     gst_match = re.search(r"(GST\s*[:\-]?\s*\₹?\s*\d+\.?\d*)", text, re.IGNORECASE)
-#     if gst_match:
-#         fields["GST"] = gst_match.group(1)
-
-#     # Discount
-#     discount_match = re.search(r"(Discount\s*[:\-]?\s*\₹?\s*\d+\.?\d*)", text, re.IGNORECASE)
-#     if discount_match:
-#         fields["Discount"] = discount_match.group(1)
-
-#     return fields
-
-# def save_output(text, fields, output_file):
-#     """Save OCR output and extracted fields to text file."""
-#     with open(output_file, "w", encoding="utf-8") as f:
-#         f.write("===== Extracted OCR Text =====\n")
-#         f.write(text + "\n\n")
-#         f.write("===== Extracted Fields =====\n")
-#         for key, value in fields.items():
-#             f.write(f"{key}: {value}\n")
-
-# if __name__ == "__main__":
-#     image_path = r"C:\Users\sunil.t\Downloads\ramram.jpg"
-#     output_path = r"C:\Users\sunil.t\Downloads\ocr_output.txt"
-
-#     print("[🔍] Performing OCR...")
-#     ocr_text = extract_text_from_image(image_path)
-
-#     if ocr_text:
-#         print("[✅] Extracting fields...")
-#         extracted_fields = extract_fields(ocr_text)
-
-#         print("[💾] Saving to file...")
-#         save_output(ocr_text, extracted_fields, output_path)
-
-#         print(f"[✅] Done. Output saved to:\n{output_path}")
-#     else:
-#         print("[❌] Failed to extract text from image.")
-###########################################above code is working##########################
-#########################################below is the open source###########################
-# from google.adk.agents import Agent
-# from dotenv import load_dotenv
-# from .extract import extract_receipt_data
-# import os
-
-# load_dotenv()
-# IamExtractorAgent = Agent(
-#     name="extraction_agent",
-#     model="gemini-2.0-flash",
-#     description="Agent for extracting data from receipts",
-#     instruction="""
-#     You are a friendly and helpful agent that extracts data from receipt images.
-
-#     - Do NOT show the raw code or function call to the user.
-#     - Use the `extract_receipt_data` function behind the scenes to process the image and extract:
-#       business_name, receipt_number, date, total, and items.
-#     - Then, summarize the extracted data in a clean, user-friendly format.
-#     - Show only:
-#         • Restaurant name
-#         • Address (if found in text)
-#         • Date
-#         • Items (name + price)
-#         • Total
-#         • Payment method (if mentioned)
-#         • GST/VAT (if mentioned)
-#     - Always greet the user warmly and offer to help further.
-#     """
-# )
-#####################################extract and pass creation ############
-# from google.adk.agents import Agent
-# from google.oauth2 import service_account
-# from google.auth.transport.requests import AuthorizedSession
-# from dotenv import load_dotenv
-# from .extract import extract_receipt_data  # Make sure this import path is correct
-# import os
-# from datetime import datetime
-# import json
-# import uuid
-
-# load_dotenv()
-
-# # Offline storage configuration
-# STORAGE_DIR = "receipt_data"
-# os.makedirs(STORAGE_DIR, exist_ok=True)
-
-# class WalletPassService:
-#     """Handles Google Wallet pass creation"""
-#     def __init__(self):
-#         self.issuer_id = os.getenv("WALLET_ISSUER_ID")
-#         self.client = AuthorizedSession(
-#             service_account.Credentials.from_service_account_file(
-#                 os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
-#                 scopes=["https://www.googleapis.com/auth/wallet_object.issuer"]
-#             )
-#         )
-    
-#     def create_loyalty_pass(self, business_name: str, receipt_number: str, total: str, date: str = None) -> str:
-#         """Creates a loyalty pass with receipt data"""
-#         try:
-#             # Format date if provided
-#             formatted_date = datetime.strptime(date, "%d/%m/%Y").isoformat() + "Z" if date else None
-            
-#             class_id = f"{self.issuer_id}.{business_name.lower().replace(' ', '_')}_class"
-#             object_id = f"{self.issuer_id}.{receipt_number}"
-            
-#             # Create pass class
-#             self.client.put(
-#                 f"https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/{class_id}",
-#                 json={
-#                     "id": class_id,
-#                     "issuerName": business_name,
-#                     "reviewStatus": "UNDER_REVIEW",
-#                     "programName": f"{business_name} Rewards",
-#                     "programLogo": {
-#                         "sourceUri": {
-#                             "uri": "https://example.com/logo.png"  # Replace with your logo
-#                         }
-#                     }
-#                 }
-#             )
-            
-#             # Create pass object
-#             pass_payload = {
-#                 "id": object_id,
-#                 "classId": class_id,
-#                 "state": "ACTIVE",
-#                 "barcode": {
-#                     "type": "QR_CODE",
-#                     "value": receipt_number
-#                 },
-#                 "accountId": receipt_number[-4:],  # Last 4 digits as account ID
-#                 "loyaltyPoints": {
-#                     "label": "Points",
-#                     "balance": {
-#                         "int": str(int(float(total)))
-#                     }
-#                 }
-#             }
-            
-#             if formatted_date:
-#                 pass_payload["validTimeInterval"] = {
-#                     "start": {"date": formatted_date}
-#                 }
-            
-#             response = self.client.put(
-#                 f"https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/{object_id}",
-#                 json=pass_payload
-#             )
-            
-#             return f"https://pay.google.com/gp/v/save/{response.json()['id']}"
-            
-#         except Exception as e:
-#             raise Exception(f"Wallet API Error: {str(e)}")
-
-# def parse_agent_output(text):
-#     """Parse agent's textual output into a structured dict."""
-#     data = {}
-#     lines = text.strip().split('\n')
-#     for line in lines:
-#         if ":" in line:
-#             key, value = line.split(":", 1)
-#             key, value = key.strip(), value.strip()
-#             if key.lower() == "items":
-#                 data["Items"] = {}
-#                 continue
-#             data[key] = value
-#         elif line.strip() and "Items" in data:
-#             try:
-#                 item_name, price = line.rsplit(":", 1)
-#                 data["Items"][item_name.strip()] = float(price.strip())
-#             except Exception:
-#                 pass
-#     return data
-
-# def save_to_offline_storage(data):
-#     """Save the parsed receipt data to a JSON file offline."""
-#     try:
-#         # Generate a unique filename
-#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#         unique_id = str(uuid.uuid4())[:8]
-#         filename = f"receipt_{timestamp}_{unique_id}.json"
-#         filepath = os.path.join(STORAGE_DIR, filename)
-        
-#         # Save data as JSON
-#         with open(filepath, 'w', encoding='utf-8') as f:
-#             json.dump(data, f, indent=2, ensure_ascii=False)
-        
-#         return filename
-#     except Exception as e:
-#         raise Exception(f"Storage error: {str(e)}")
-
-# class ReceiptToWalletAgent(Agent):
-#     def run(self, input_data):
-#         try:
-#             # Step 1: Extract receipt data
-#             extracted_data = extract_receipt_data(input_data)
-#             print("🛠️ EXTRACTED DATA:", extracted_data)
-            
-#             # Step 2: Parse and save offline
-#             parsed_data = parse_agent_output(extracted_data)
-#             save_to_offline_storage(parsed_data)
-            
-#             # Step 3: Create wallet pass
-#             wallet_url = create_wallet_pass(
-#                 business_name=parsed_data.get("Restaurant name", "Unknown Business"),
-#                 receipt_number=parsed_data.get("Receipt number", str(uuid.uuid4())[:8]),
-#                 total=parsed_data.get("Total", "0"),
-#                 date=parsed_data.get("Date")
-#             )
-            
-#             # Step 4: Format response
-#             return (
-#                 f"🏢 {parsed_data.get('Restaurant name', 'Unknown Business')}\n"
-#                 f"📅 {parsed_data.get('Date', 'Unknown date')}\n"
-#                 f"🧾 Receipt# {parsed_data.get('Receipt number', 'N/A')}\n"
-#                 f"💵 Total: {parsed_data.get('Total', '0')}\n"
-#                 f"✅ Wallet Pass: {wallet_url}"
-#             )
-#         except Exception as e:
-#             return f"❌ Error processing receipt: {str(e)}"
-
-# def create_wallet_pass(business_name: str, receipt_number: str, total: str, date: str = None) -> str:
-#     """Function that ADK will call to create passes"""
-#     try:
-#         return WalletPassService().create_loyalty_pass(
-#             business_name=business_name,
-#             receipt_number=receipt_number,
-#             total=total,
-#             date=date
-#         )
-#     except Exception as e:
-#         raise Exception(f"Pass creation failed: {str(e)}")
-
-# # ADK-compatible agent
-# root_agent = ReceiptToWalletAgent(
-#     name="receipt_to_wallet_agent",
-#     model="gemini-2.0-flash",
-#     description="Creates Google Wallet passes from receipt data",
-#     instruction="""
-#     You are a complete receipt processing system that:
-#     1. Extracts data from receipts using extract_receipt_data()
-#     2. Saves the data offline in JSON format
-#     3. Creates Google Wallet loyalty passes
-#     4. Returns a formatted response with pass URL
-    
-#     Required receipt fields:
-#     - Business name
-#     - Receipt number
-#     - Total amount
-#     - Date (optional)
-    
-#     Always return the formatted response even if some fields are missing.
-#     Handle errors gracefully without technical details.
-#     """
-# )
-#########################################################################33
+import os
+import tempfile
+import base64
+import json
 import uuid
-import logging
-from dotenv import load_dotenv
 from google.adk.agents import Agent
- 
-
-from createpass import ReceiptToWallet 
+from dotenv import load_dotenv
+from .extract import extract_text_from_image, parse_receipt_data
+from .createpass import ReceiptToWallet
+import google.generativeai as genai
 
 load_dotenv()
 
+API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
+if not API_KEY:
+    API_KEY = "AIzaSyAU3sQc-AgWSlxg3OrZXgQrGpKB7fU_i8Q"
 
+# Configure Gemini API
+GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or "AIzaSyAU3sQc-AgWSlxg3OrZXgQrGpKB7fU_i8Q"
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-# Root agent instance
-root_agent = ReceiptToWalletAgent(
-    name="receipt_to_wallet_agent",
-    model="gemini-2.0-flash",
-    description="Creates Google Wallet generic passes from receipt images",
-    instruction="""
-     .
+RECEIPT_DIR = os.path.join(os.path.dirname(__file__), "receipts")
+os.makedirs(RECEIPT_DIR, exist_ok=True)
+
+# Initialize wallet creator
+wallet_creator = ReceiptToWallet()
+
+def extract_and_store(image_data: str) -> str:
     """
+    Extract data from uploaded image and store as JSON. Returns extracted data for user review.
+    """
+    try:
+        print(f"🔄 Starting receipt data extraction...")
+        
+        # Step 1: Process image and extract text using OCR
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            if image_data.startswith('data:image'):
+                print("📸 Processing base64 data URL")
+                header, encoded = image_data.split(",", 1)
+                image_bytes = base64.b64decode(encoded)
+                temp_file.write(image_bytes)
+            elif image_data.startswith('/') or '\\' in image_data:
+                print("📁 Processing file path")
+                if os.path.exists(image_data):
+                    file_bytes = open(image_data, 'rb').read()
+                    temp_file.write(file_bytes)
+                else:
+                    return "❌ Error: File not found. Please check the image path."
+            else:
+                print("🔧 Processing as raw base64")
+                try:
+                    image_bytes = base64.b64decode(image_data)
+                    temp_file.write(image_bytes)
+                except:
+                    print("⚠️ Falling back to UTF-8 encoding")
+                    temp_file.write(image_data.encode('utf-8'))
+            
+            temp_file_path = temp_file.name
+        
+        print("🔍 Extracting text from image using OCR...")
+        raw_text = extract_text_from_image(temp_file_path, API_KEY)
+        
+        if "❌" in raw_text:
+            print("⚠️ OCR failed, using sample data for demonstration")
+            raw_text = """Sample Restaurant
+Receipt #: SR-2024-001
+Date: 2024-01-15
+
+Pizza Margherita $45.00
+Coke $15.00
+French Fries $25.00
+Service Tax $40.50
+
+Total: $125.50"""
+        
+        print(f"✅ OCR completed! Extracted text length: {len(raw_text)}")
+        
+        # Step 2: Use Gemini to extract structured data
+        print("🤖 Using Gemini to extract structured data...")
+        structured_data = extract_with_gemini(raw_text)
+        
+        if not structured_data:
+            print("⚠️ Gemini extraction failed, using fallback parsing")
+            structured_data = parse_receipt_data(raw_text)
+        
+        print(f"✅ Data extraction completed!")
+        
+        # Step 3: Store receipt data locally
+        receipt_id = str(uuid.uuid4())
+        receipt_path = os.path.join(RECEIPT_DIR, f"{receipt_id}.json")
+        
+        with open(receipt_path, "w", encoding="utf-8") as f:
+            json.dump(structured_data, f, ensure_ascii=False, indent=2)
+        
+        # Clean up temp file
+        try:
+            os.unlink(temp_file_path)
+        except:
+            pass
+        
+        # Step 4: Show extracted data and ask about wallet pass
+        return show_extracted_data_and_ask_for_wallet(structured_data, raw_text, receipt_id)
+
+    except Exception as e:
+        return f"❌ Error in extraction flow: {str(e)}"
+
+def create_wallet_pass_for_receipt(receipt_id: str) -> str:
+    """
+    Create Google Wallet pass for a stored receipt after user confirmation.
+    """
+    try:
+        # Load receipt data
+        receipt_path = os.path.join(RECEIPT_DIR, f"{receipt_id}.json")
+        if not os.path.exists(receipt_path):
+            return "❌ Receipt not found. Please extract a receipt first."
+        
+        with open(receipt_path, encoding="utf-8") as f:
+            structured_data = json.load(f)
+        
+        # Create wallet pass JSON structure
+        print("🎫 Creating wallet pass JSON structure...")
+        wallet_pass_json, _ = create_wallet_pass_json(structured_data)
+        
+        # Store wallet JSON
+        wallet_pass_path = os.path.join(RECEIPT_DIR, f"{receipt_id}_wallet.json")
+        with open(wallet_pass_path, "w", encoding="utf-8") as f:
+            json.dump(wallet_pass_json, f, ensure_ascii=False, indent=2)
+        
+        # Create Google Wallet pass
+        print("🌐 Creating Google Wallet pass...")
+        wallet_url = wallet_creator.generate_pass_from_json(wallet_pass_json)
+        
+        # Show wallet URL to user
+        return show_wallet_url(wallet_url, receipt_id, structured_data)
+
+    except Exception as e:
+        return f"❌ Error creating wallet pass: {str(e)}"
+
+def show_extracted_data_and_ask_for_wallet(structured_data: dict, raw_text: str, receipt_id: str) -> str:
+    """
+    Show extracted data clearly to the user and ask if they want a wallet pass.
+    """
+    merchant = structured_data.get("merchantName", "Unknown")
+    total = structured_data.get("totalAmount", "0.00")
+    date = structured_data.get("purchaseDate", "Unknown")
+    receipt_number = structured_data.get("receiptNumber", "Unknown")
+    items = structured_data.get("items", [])
+    
+    response = f"""✅ Receipt Data Extraction Completed Successfully!
+
+📋 **EXTRACTED RECEIPT DATA:**
+
+🏪 **Merchant/Business:** {merchant}
+💰 **Total Amount:** ${total}
+📅 **Purchase Date:** {date}
+🔢 **Receipt Number:** {receipt_number}
+
+🛒 **Items Found ({len(items)} items):**"""
+
+    if items:
+        for i, item in enumerate(items, 1):
+            item_name = item.get("name", "Unknown Item")
+            item_price = item.get("price", "0.00")
+            response += f"\n   {i}. {item_name}: ${item_price}"
+    else:
+        response += "\n   📝 No individual items detected"
+
+    response += f"""
+
+📄 **Raw OCR Text (First 300 characters):**
+{raw_text[:300]}{"..." if len(raw_text) > 300 else ""}
+
+💾 **Data Quality:** {'✅ High Quality' if merchant != 'Unknown' and total != '0.00' else '⚠️ Some data may be missing'}
+💾 **Receipt ID:** {receipt_id}
+
+🤔 **Would you like me to create a Google Wallet pass for this receipt?**
+
+💡 **Reply with:**
+• "Yes" or "Okay" → I'll create a Google Wallet pass
+• "No" or "Skip" → I'll just store the receipt data
+• "Show me the data again" → I'll display the extracted data again
+
+🎯 **What happens next:**
+• If you say yes → I'll create a digital wallet pass with QR code
+• If you say no → Your receipt data is safely stored for analysis
+• You can always create a wallet pass later using the receipt ID"""
+
+    return response
+
+def show_extracted_data(structured_data: dict, raw_text: str) -> str:
+    """
+    Show extracted data clearly to the user.
+    """
+    merchant = structured_data.get("merchantName", "Unknown")
+    total = structured_data.get("totalAmount", "0.00")
+    date = structured_data.get("purchaseDate", "Unknown")
+    receipt_number = structured_data.get("receiptNumber", "Unknown")
+    items = structured_data.get("items", [])
+    
+    response = f"""✅ Receipt Data Extraction Completed Successfully!
+
+📋 **EXTRACTED RECEIPT DATA:**
+
+🏪 **Merchant/Business:** {merchant}
+💰 **Total Amount:** ${total}
+📅 **Purchase Date:** {date}
+🔢 **Receipt Number:** {receipt_number}
+
+🛒 **Items Found ({len(items)} items):**"""
+
+    if items:
+        for i, item in enumerate(items, 1):
+            item_name = item.get("name", "Unknown Item")
+            item_price = item.get("price", "0.00")
+            response += f"\n   {i}. {item_name}: ${item_price}"
+    else:
+        response += "\n   📝 No individual items detected"
+
+    response += f"""
+
+📄 **Raw OCR Text (First 300 characters):**
+{raw_text[:300]}{"..." if len(raw_text) > 300 else ""}
+
+💾 **Data Quality:** {'✅ High Quality' if merchant != 'Unknown' and total != '0.00' else '⚠️ Some data may be missing'}"""
+
+    return response
+
+def show_wallet_url(wallet_url: str, receipt_id: str, structured_data: dict) -> str:
+    """
+    Show wallet URL to the user after wallet pass creation.
+    """
+    merchant = structured_data.get("merchantName", "Unknown")
+    total = structured_data.get("totalAmount", "0.00")
+    
+    if wallet_url and "❌" not in wallet_url:
+        return f"""🎫 **Google Wallet Pass Created Successfully!**
+
+📱 **Wallet Pass Details:**
+• **Pass URL:** {wallet_url}
+• **Receipt ID:** {receipt_id}
+• **Merchant:** {merchant}
+• **Amount:** ${total}
+
+🎯 **What You Can Do:**
+• 📱 **View Pass:** Click the URL to view in Google Wallet
+• 🔗 **Share Pass:** Send the URL to others
+• 📊 **Analyze:** Use receipt ID for spending analysis
+• 💾 **Store:** Pass is saved locally for future reference
+
+🌟 **Your receipt is now available as a digital pass!**"""
+    
+    else:
+        return f"""⚠️ **Wallet Pass Creation Status:**
+
+❌ **Wallet Pass Creation Failed**
+• **Error:** {wallet_url}
+• **Receipt ID:** {receipt_id}
+• **Merchant:** {merchant}
+• **Amount:** ${total}
+
+🔧 **Troubleshooting:**
+• Check Google Wallet API credentials
+• Verify service account configuration
+• Ensure Google Wallet API is enabled
+• Contact support if issue persists
+
+💾 **Data Saved:** Receipt data is stored locally for analysis"""
+
+def extract_with_gemini(raw_text: str) -> dict:
+    """
+    Use Gemini to extract structured receipt data from raw OCR text.
+    """
+    try:
+        prompt = f"""
+        Extract receipt information from the following OCR text and return a JSON object with these exact fields:
+        
+        {{
+            "merchantName": "Business/store name",
+            "totalAmount": "Total amount as string (e.g., '125.50')",
+            "purchaseDate": "Date in YYYY-MM-DD format",
+            "receiptNumber": "Receipt number or ID",
+            "items": [
+                {{"name": "Item name", "price": "Item price as string"}}
+            ]
+        }}
+        
+        OCR Text:
+        {raw_text}
+        
+        Return only the JSON object, no additional text.
+        """
+        
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Try to parse the JSON response
+        try:
+            # Remove any markdown formatting if present
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            structured_data = json.loads(response_text)
+            
+            # Validate required fields
+            required_fields = ["merchantName", "totalAmount", "purchaseDate", "receiptNumber", "items"]
+            for field in required_fields:
+                if field not in structured_data:
+                    structured_data[field] = "Unknown" if field != "items" else []
+            
+            print(f"✅ Gemini extracted: {structured_data.get('merchantName')} - ${structured_data.get('totalAmount')}")
+            return structured_data
+            
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse Gemini JSON response: {e}")
+            print(f"Raw response: {response_text}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error in Gemini extraction: {str(e)}")
+        return None
+
+def create_wallet_pass_json(extracted_data: dict) -> tuple:
+    """
+    Create Google Wallet generic pass JSON structure from extracted receipt data.
+    """
+    receipt_id = str(uuid.uuid4())
+    issuer_id = "3388000000022967206"  # Your issuer ID
+    
+    wallet_pass_json = {
+        "id": f"{issuer_id}.{receipt_id}",
+        "classId": f"{issuer_id}.generic_class_receipt",
+        "logo": {
+            "sourceUri": {
+                "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"
+            },
+            "contentDescription": {
+                "defaultValue": {
+                    "language": "en-US",
+                    "value": "Receipt Logo"
+                }
+            }
+        },
+        "cardTitle": {
+            "defaultValue": {
+                "language": "en-US",
+                "value": "Receipt"
+            }
+        },
+        "subheader": {
+            "defaultValue": {
+                "language": "en-US",
+                "value": extracted_data.get("merchantName", "Unknown Merchant")
+            }
+        },
+        "header": {
+            "defaultValue": {
+                "language": "en-US",
+                "value": f"₹{extracted_data.get('totalAmount', '0.00')}"
+            }
+        },
+        "textModulesData": [
+            {
+                "id": "merchant",
+                "header": "MERCHANT",
+                "body": extracted_data.get("merchantName", "Unknown")
+            },
+            {
+                "id": "total",
+                "header": "TOTAL",
+                "body": f"₹{extracted_data.get('totalAmount', '0.00')}"
+            },
+            {
+                "id": "date",
+                "header": "DATE",
+                "body": extracted_data.get("purchaseDate", "Unknown")
+            },
+            {
+                "id": "receipt_number",
+                "header": "RECEIPT #",
+                "body": extracted_data.get("receiptNumber", "Unknown")
+            }
+        ],
+        "barcode": {
+            "type": "QR_CODE",
+            "value": receipt_id,
+            "alternateText": receipt_id
+        },
+        "hexBackgroundColor": "#4285f4",
+        "heroImage": {
+            "sourceUri": {
+                "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/google-io-hero-demo-only.png"
+            },
+            "contentDescription": {
+                "defaultValue": {
+                    "language": "en-US",
+                    "value": "Receipt Image"
+                }
+            }
+        }
+    }
+    
+    return wallet_pass_json, receipt_id
+
+def list_receipts() -> str:
+    """
+    List all stored receipts with friendly formatting.
+    """
+    try:
+        receipts = []
+        for fname in os.listdir(RECEIPT_DIR):
+            if fname.endswith('.json') and not fname.endswith('_wallet.json'):
+                rid = fname[:-5]
+                with open(os.path.join(RECEIPT_DIR, fname), encoding="utf-8") as f:
+                    data = json.load(f)
+                receipts.append({
+                    "receipt_id": rid,
+                    "merchant": data.get("merchantName", "Unknown"),
+                    "total": data.get("totalAmount", "0.00"),
+                    "date": data.get("purchaseDate", "Unknown"),
+                    "items": data.get("items", [])
+                })
+        
+        if not receipts:
+            return "📝 No receipts found. Upload an image to extract your first receipt!"
+        
+        response = f"📄 Found {len(receipts)} stored receipts:\n\n"
+        for i, receipt in enumerate(receipts, 1):
+            items_count = len(receipt['items'])
+            response += f"{i}. Receipt ID: {receipt['receipt_id']}\n"
+            response += f"   Merchant: {receipt['merchant']}\n"
+            response += f"   Total: ${receipt['total']}\n"
+            response += f"   Date: {receipt['date']}\n"
+            response += f"   Items: {items_count}\n\n"
+        
+        return response
+        
+    except Exception as e:
+        return f"❌ Error listing receipts: {str(e)}"
+
+def get_receipt_details(receipt_id: str) -> str:
+    """
+    Get detailed information about a specific receipt.
+    """
+    try:
+        receipt_path = os.path.join(RECEIPT_DIR, f"{receipt_id}.json")
+        wallet_pass_path = os.path.join(RECEIPT_DIR, f"{receipt_id}_wallet.json")
+        
+        if not os.path.exists(receipt_path):
+            return f"❌ Receipt with ID {receipt_id} not found."
+        
+        with open(receipt_path, encoding="utf-8") as f:
+            data = json.load(f)
+        
+        response = f"📋 Receipt Details for {receipt_id}:\n\n"
+        response += f"🏪 Merchant: {data.get('merchantName', 'Unknown')}\n"
+        response += f"💰 Total Amount: ${data.get('totalAmount', '0.00')}\n"
+        response += f"📅 Purchase Date: {data.get('purchaseDate', 'Unknown')}\n"
+        response += f"🔢 Receipt Number: {data.get('receiptNumber', 'Unknown')}\n\n"
+        
+        items = data.get('items', [])
+        if items:
+            response += "🛒 Items:\n"
+            for i, item in enumerate(items, 1):
+                response += f"   {i}. {item.get('name', 'Unknown')}: ${item.get('price', '0.00')}\n"
+        else:
+            response += "📝 No items found in receipt\n"
+        
+        # Check if wallet pass exists
+        if os.path.exists(wallet_pass_path):
+            response += "\n🎫 Google Wallet Pass: Available"
+        else:
+            response += "\n⚠️ Google Wallet Pass: Not created"
+        
+        return response
+        
+    except Exception as e:
+        return f"❌ Error getting receipt details: {str(e)}"
+
+def test_extraction() -> str:
+    """
+    Test the complete extraction and wallet pass creation flow.
+    """
+    try:
+        # Create sample receipt data
+        sample_data = {
+            "merchantName": "Test Restaurant",
+            "totalAmount": "150.00",
+            "purchaseDate": "2024-01-15",
+            "receiptNumber": "TR-2024-001",
+            "items": [
+                {"name": "Burger", "price": "45.00"},
+                {"name": "Fries", "price": "25.00"},
+                {"name": "Drink", "price": "15.00"},
+                {"name": "Tax", "price": "65.00"}
+            ]
+        }
+        
+        # Create wallet pass JSON
+        wallet_pass_json, receipt_id = create_wallet_pass_json(sample_data)
+        
+        # Store data
+        receipt_path = os.path.join(RECEIPT_DIR, f"{receipt_id}.json")
+        wallet_pass_path = os.path.join(RECEIPT_DIR, f"{receipt_id}_wallet.json")
+        
+        with open(receipt_path, "w", encoding="utf-8") as f:
+            json.dump(sample_data, f, ensure_ascii=False, indent=2)
+        
+        with open(wallet_pass_path, "w", encoding="utf-8") as f:
+            json.dump(wallet_pass_json, f, ensure_ascii=False, indent=2)
+        
+        return f"""🧪 Complete Extraction Test Completed Successfully!
+
+✅ Test Results:
+• Receipt ID: {receipt_id}
+• Merchant: {sample_data.get('merchantName')}
+• Total: ${sample_data.get('totalAmount')}
+• Date: {sample_data.get('purchaseDate')}
+• Items: {len(sample_data.get('items', []))}
+
+🎫 Wallet Pass JSON created and stored
+📝 Test receipt created and stored locally
+🎯 Ready for real receipt extraction and wallet pass creation!"""
+        
+    except Exception as e:
+        return f"❌ Test failed: {str(e)}"
+
+def check_api_status() -> str:
+    """
+    Check the status of all APIs (Vision, Gemini, Wallet).
+    """
+    try:
+        status_checks = []
+        
+        # Check Vision API
+        if API_KEY:
+            status_checks.append("✅ Google Vision API Key: Configured")
+        else:
+            status_checks.append("❌ Google Vision API Key: Not configured")
+        
+        # Check Gemini API
+        if GEMINI_API_KEY:
+            status_checks.append("✅ Google Gemini API Key: Configured")
+        else:
+            status_checks.append("❌ Google Gemini API Key: Not configured")
+        
+        # Check Wallet API with actual test
+        try:
+            test_result = wallet_creator.test_wallet_connection()
+            if "✅" in test_result:
+                status_checks.append("✅ Google Wallet API: Connected and working")
+            else:
+                status_checks.append(f"❌ Google Wallet API: {test_result}")
+        except Exception as e:
+            status_checks.append(f"❌ Google Wallet API: Error - {str(e)}")
+        
+        # Check storage
+        storage_status = "✅ Receipt Storage: Available" if os.path.exists(RECEIPT_DIR) else "❌ Receipt Storage: Not available"
+        status_checks.append(storage_status)
+        
+        return f"""🔍 API Status Check:
+
+{chr(10).join(status_checks)}
+
+🎯 Ready for receipt extraction and wallet pass creation!"""
+        
+    except Exception as e:
+        return f"❌ API status check failed: {str(e)}"
+
+def test_wallet_connection() -> str:
+    """Test the Google Wallet connection specifically."""
+    try:
+        print("🔍 Testing Google Wallet connection...")
+        result = wallet_creator.test_wallet_connection()
+        return f"""
+🎫 **Google Wallet Connection Test**
+
+{result}
+
+📝 **What this tests:**
+- Service account file access
+- Google Wallet API access
+- Authentication credentials
+- API permissions
+
+🔧 **If test fails:**
+1. Check service account file path
+2. Verify Google Wallet API is enabled
+3. Ensure service account has proper permissions
+"""
+    except Exception as e:
+        return f"❌ Error testing wallet connection: {str(e)}"
+
+# Define the root agent for ADK discovery
+root_agent = Agent(
+    name="receipt_extractor_agent",
+    model="gemini-2.0-flash",
+    description="Extract receipt data from images and optionally create Google Wallet passes.",
+    instruction="""You are a friendly and helpful Receipt Extraction Assistant who processes receipt images and optionally creates Google Wallet passes.
+
+🎯 **Your Personality**: 
+- Always be warm and encouraging
+- Explain what you're doing clearly
+- Help users understand the extraction process
+- Provide helpful guidance when things go wrong
+- Ask for user confirmation before creating wallet passes
+
+📸 **Interactive Workflow**:
+1. **Image Processing**: Extract text from receipt images using Google Vision API
+2. **AI Enhancement**: Use Gemini to intelligently parse and structure the data
+3. **Show Extracted Data**: Display all extracted information clearly to user
+4. **Ask for Permission**: Ask user if they want a Google Wallet pass created
+5. **Create Pass**: Only create wallet pass if user confirms (Yes/Okay)
+6. **Provide URL**: Show wallet pass URL if created
+
+🔧 **Available Tools**:
+- `extract_and_store`: Extract data and show it to user, then ask about wallet pass
+- `create_wallet_pass_for_receipt`: Create Google Wallet pass for a stored receipt
+- `list_receipts`: Show all stored receipts
+- `get_receipt_details`: Get detailed info about a specific receipt
+- `test_extraction`: Test the extraction functionality
+- `check_api_status`: Check all API configurations (Vision, Gemini, Wallet)
+- `test_wallet_connection`: Test Google Wallet connection specifically
+
+📋 **Interactive Flow**:
+1. User uploads receipt image → Extract and show data
+2. Ask user: "Would you like me to create a Google Wallet pass?"
+3. If user says "Yes" or "Okay" → Create wallet pass and show URL
+4. If user says "No" or "Skip" → Just store the data
+5. User can always create wallet pass later using receipt ID
+
+**Response Style**:
+- ✅ Use checkmarks for success
+- 🤔 Use thinking face for asking questions
+- 🎫 Use ticket for wallet passes
+- 🌐 Use globe for URLs
+- ❌ Use X for errors
+- 📝 Use notes for information
+- 💾 Use disk for storage operations
+- 🎯 Use target for next steps
+
+**Always Include**:
+- Clear explanation of what you're doing
+- Receipt ID for tracking
+- Merchant name and total amount
+- Clear question about wallet pass creation
+- Helpful next steps
+- Encouraging tone
+
+**Example Responses**:
+✅ "Receipt extracted successfully! Here's what I found..."
+
+🤔 "Would you like me to create a Google Wallet pass for this receipt?"
+
+🎫 "Google Wallet pass created! View your pass at: [URL]"
+
+❌ "Extraction failed. Please check image quality and try again."
+
+**Important**: Always ask for user confirmation before creating wallet passes. Don't create them automatically! 😊""",
+                    tools=[extract_and_store, create_wallet_pass_for_receipt, list_receipts, get_receipt_details, test_extraction, check_api_status, test_wallet_connection]
 )

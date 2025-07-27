@@ -1,0 +1,24 @@
+{
+  "merchantName": "Sample Restaurant",
+  "totalAmount": "125.50",
+  "purchaseDate": "2024-01-15",
+  "receiptNumber": "SR-2024-001",
+  "items": [
+    {
+      "name": "Pizza Margherita",
+      "price": "45.00"
+    },
+    {
+      "name": "Coke",
+      "price": "15.00"
+    },
+    {
+      "name": "French Fries",
+      "price": "25.00"
+    },
+    {
+      "name": "Service Tax",
+      "price": "40.50"
+    }
+  ]
+}

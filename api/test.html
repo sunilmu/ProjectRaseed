@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Raseed Agent API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; }
+        .response { background: #f8f9fa; padding: 10px; border-radius: 3px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Raseed Agent API Test</h1>
+        
+        <div class="test-section">
+            <h3>1. Health Check</h3>
+            <button onclick="testHealth()">Test Health</button>
+            <div id="health-response" class="response"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Chat with Agent</h3>
+            <textarea id="chat-message" placeholder="Enter your message here...">Hello, can you help me with receipt processing?</textarea>
+            <button onclick="testChat()">Send Message</button>
+            <div id="chat-response" class="response"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Upload Receipt</h3>
+            <input type="file" id="receipt-file" accept="image/*">
+            <button onclick="testUpload()">Upload Receipt</button>
+            <div id="upload-response" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                const data = await response.json();
+                document.getElementById('health-response').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('health-response').innerHTML = `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+
+        async function testChat() {
+            try {
+                const message = document.getElementById('chat-message').value;
+                const response = await fetch('http://localhost:8000/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                const data = await response.json();
+                document.getElementById('chat-response').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('chat-response').innerHTML = `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+
+        async function testUpload() {
+            try {
+                const fileInput = document.getElementById('receipt-file');
+                const file = fileInput.files[0];
+                if (!file) {
+                    alert('Please select a file first!');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('http://localhost:8000/upload-receipt', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('upload-response').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('upload-response').innerHTML = `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html> 

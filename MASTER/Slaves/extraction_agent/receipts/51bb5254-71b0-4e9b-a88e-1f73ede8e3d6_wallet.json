@@ -1,0 +1,72 @@
+{
+  "id": "3388000000022967206.51bb5254-71b0-4e9b-a88e-1f73ede8e3d6",
+  "classId": "3388000000022967206.generic_class_receipt",
+  "logo": {
+    "sourceUri": {
+      "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Receipt Logo"
+      }
+    }
+  },
+  "cardTitle": {
+    "defaultValue": {
+      "language": "en-US",
+      "value": "Receipt"
+    }
+  },
+  "subheader": {
+    "defaultValue": {
+      "language": "en-US",
+      "value": "Sample Restaurant"
+    }
+  },
+  "header": {
+    "defaultValue": {
+      "language": "en-US",
+      "value": "₹125.50"
+    }
+  },
+  "textModulesData": [
+    {
+      "id": "merchant",
+      "header": "MERCHANT",
+      "body": "Sample Restaurant"
+    },
+    {
+      "id": "total",
+      "header": "TOTAL",
+      "body": "₹125.50"
+    },
+    {
+      "id": "date",
+      "header": "DATE",
+      "body": "2024-01-15"
+    },
+    {
+      "id": "receipt_number",
+      "header": "RECEIPT #",
+      "body": "SR-2024-001"
+    }
+  ],
+  "barcode": {
+    "type": "QR_CODE",
+    "value": "51bb5254-71b0-4e9b-a88e-1f73ede8e3d6",
+    "alternateText": "51bb5254-71b0-4e9b-a88e-1f73ede8e3d6"
+  },
+  "hexBackgroundColor": "#4285f4",
+  "heroImage": {
+    "sourceUri": {
+      "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/google-io-hero-demo-only.png"
+    },
+    "contentDescription": {
+      "defaultValue": {
+        "language": "en-US",
+        "value": "Receipt Image"
+      }
+    }
+  }
+}

@@ -15,8 +15,8 @@ class ReceiptToWallet:
         
         # Configuration - Use provided parameters or environment variables
         self.SERVICE_ACCOUNT_FILE = service_account_file or os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", 
-                                            r"C:\Users\sunil.t\Downloads\raseed-466712-ace42483d1e8.json")
-        self.WALLET_ISSUER_ID = wallet_issuer_id or os.getenv("WALLET_ISSUER_ID", "3388000000022967206")
+                                            r"XXXXXXXXXXXXXXXXXXXXXXXX")
+        self.WALLET_ISSUER_ID = wallet_issuer_id or os.getenv("WALLET_ISSUER_ID", "xxxxxxxxxxxxxxx")
         self.CLASS_ID = f"{self.WALLET_ISSUER_ID}.raseed_loyalty_class"
         self.ORIGIN_URL = origin_url or os.getenv("ORIGIN_URL", "http://localhost")
         

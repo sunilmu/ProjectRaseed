@@ -13,7 +13,7 @@ load_dotenv()
 
 API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
 if not API_KEY:
-    API_KEY = "AIzaSyAU3sQc-AgWSlxg3OrZXgQrGpKB7fU_i8Q"
+    API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 # Configure Gemini API
 GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or "AIzaSyAU3sQc-AgWSlxg3OrZXgQrGpKB7fU_i8Q"

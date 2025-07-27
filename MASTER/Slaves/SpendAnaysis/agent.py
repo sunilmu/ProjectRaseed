@@ -284,6 +284,286 @@ def get_top_merchants_tool() -> str:
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
+def get_fuel_spending_this_month_tool() -> str:
+    """Get fuel spending for the current month"""
+    try:
+        from datetime import datetime, timedelta
+        
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        
+        fuel_receipts = []
+        total_fuel_spending = 0.0
+        
+        for receipt in spend_analysis_agent.sample_data:
+            # Check if it's a gas station receipt
+            merchant = receipt['merchantName'].lower()
+            if any(gas_station in merchant for gas_station in ['shell', 'exxon', 'gas', 'fuel', 'mobil']):
+                # Parse the date
+                try:
+                    receipt_date = datetime.strptime(receipt['purchaseDate'], '%Y-%m-%d')
+                    if receipt_date.month == current_month and receipt_date.year == current_year:
+                        fuel_receipts.append(receipt)
+                        total_fuel_spending += float(receipt['totalAmount'])
+                except:
+                    # If date parsing fails, check if it's a recent receipt
+                    continue
+        
+        if not fuel_receipts:
+            return "⛽ No fuel purchases found this month."
+        
+        inr_amount = total_fuel_spending * spend_analysis_agent.usd_to_inr
+        
+        result = f"⛽ **Fuel Spending This Month:**\n"
+        result += f"💰 Total: ${total_fuel_spending:.2f} ({spend_analysis_agent.format_inr(inr_amount)})\n"
+        result += f"📊 Purchases: {len(fuel_receipts)}\n"
+        
+        # Quick insight
+        if total_fuel_spending > 100:
+            result += f"💡 Consider carpooling to reduce fuel costs.\n"
+        elif len(fuel_receipts) > 3:
+            result += f"💡 Frequent purchases - look for bulk discounts.\n"
+        else:
+            result += f"💡 Your fuel spending looks reasonable.\n"
+        
+        return result
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+def can_cook_biryani_with_groceries_tool() -> str:
+    """Analyze if available groceries can be used to cook biryani"""
+    try:
+        # Biryani ingredients checklist
+        biryani_ingredients = {
+            'rice': ['rice', 'basmati', 'long grain'],
+            'meat': ['chicken', 'mutton', 'beef', 'lamb', 'meat'],
+            'spices': ['cardamom', 'cinnamon', 'cloves', 'bay leaves', 'cumin', 'coriander', 'turmeric', 'saffron'],
+            'vegetables': ['onion', 'tomato', 'ginger', 'garlic', 'mint', 'coriander leaves'],
+            'dairy': ['ghee', 'yogurt', 'milk'],
+            'nuts': ['cashews', 'almonds', 'raisins'],
+            'other': ['oil', 'salt', 'sugar']
+        }
+        
+        # Collect all grocery items from receipts
+        available_groceries = []
+        grocery_receipts = []
+        
+        for receipt in spend_analysis_agent.sample_data:
+            merchant = receipt['merchantName'].lower()
+            # Check if it's a grocery store
+            if any(grocery in merchant for grocery in ['walmart', 'kroger', 'whole foods', 'trader joe', 'publix', 'safeway', 'albertsons', 'grocery', 'market']):
+                grocery_receipts.append(receipt)
+                for item in receipt.get('items', []):
+                    item_name = item.get('name', '').lower()
+                    available_groceries.append(item_name)
+        
+        if not grocery_receipts:
+            return "🛒 No grocery purchases found. Need to shop for biryani ingredients!"
+        
+        # Analyze what ingredients are available
+        available_ingredients = {}
+        missing_ingredients = {}
+        
+        for category, ingredients in biryani_ingredients.items():
+            available_ingredients[category] = []
+            missing_ingredients[category] = []
+            
+            for ingredient in ingredients:
+                found = False
+                for grocery in available_groceries:
+                    if ingredient in grocery:
+                        available_ingredients[category].append(ingredient)
+                        found = True
+                        break
+                if not found:
+                    missing_ingredients[category].append(ingredient)
+        
+        # Calculate availability percentage
+        total_ingredients = sum(len(ingredients) for ingredients in biryani_ingredients.values())
+        available_count = sum(len(ingredients) for ingredients in available_ingredients.values())
+        availability_percentage = (available_count / total_ingredients) * 100
+        
+        result = f"🍚 **Biryani Analysis:** {availability_percentage:.0f}% ready\n\n"
+        
+        # Quick verdict
+        if availability_percentage >= 70:
+            result += "✅ **YES!** You can cook biryani.\n"
+        elif availability_percentage >= 50:
+            result += "🤔 **MAYBE** - need some shopping.\n"
+        else:
+            result += "❌ **NO** - need more ingredients.\n"
+        
+        # Key missing items
+        if missing_ingredients.get('meat'):
+            result += f"💡 Buy: meat (chicken/mutton)\n"
+        if missing_ingredients.get('rice'):
+            result += f"💡 Buy: basmati rice\n"
+        if missing_ingredients.get('spices'):
+            result += f"💡 Buy: biryani spices\n"
+        
+        return result
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+def what_can_i_cook_with_groceries_tool() -> str:
+    """Analyze available groceries and suggest multiple recipes that can be cooked"""
+    try:
+        # Recipe database with ingredients and difficulty
+        recipes = {
+            'Pasta Carbonara': {
+                'ingredients': ['pasta', 'eggs', 'bacon', 'cheese', 'parmesan', 'black pepper', 'salt'],
+                'difficulty': 'Easy',
+                'time': '20 minutes',
+                'category': 'Italian'
+            },
+            'Chicken Stir Fry': {
+                'ingredients': ['chicken', 'vegetables', 'soy sauce', 'oil', 'garlic', 'ginger', 'onion'],
+                'difficulty': 'Medium',
+                'time': '25 minutes',
+                'category': 'Asian'
+            },
+            'Vegetable Curry': {
+                'ingredients': ['onion', 'tomato', 'potato', 'carrot', 'spices', 'turmeric', 'cumin', 'coriander', 'oil'],
+                'difficulty': 'Medium',
+                'time': '30 minutes',
+                'category': 'Indian'
+            },
+            'Beef Tacos': {
+                'ingredients': ['beef', 'tortillas', 'lettuce', 'tomato', 'cheese', 'onion', 'spices'],
+                'difficulty': 'Easy',
+                'time': '20 minutes',
+                'category': 'Mexican'
+            },
+            'Fish and Chips': {
+                'ingredients': ['fish', 'potato', 'flour', 'oil', 'salt', 'pepper'],
+                'difficulty': 'Medium',
+                'time': '30 minutes',
+                'category': 'British'
+            },
+            'Vegetable Soup': {
+                'ingredients': ['carrot', 'onion', 'celery', 'potato', 'tomato', 'vegetable broth', 'herbs'],
+                'difficulty': 'Easy',
+                'time': '45 minutes',
+                'category': 'Soup'
+            },
+            'Chicken Rice Bowl': {
+                'ingredients': ['chicken', 'rice', 'vegetables', 'soy sauce', 'oil', 'garlic'],
+                'difficulty': 'Easy',
+                'time': '25 minutes',
+                'category': 'Asian'
+            },
+            'Pizza Margherita': {
+                'ingredients': ['flour', 'tomato', 'mozzarella', 'basil', 'olive oil', 'salt'],
+                'difficulty': 'Medium',
+                'time': '40 minutes',
+                'category': 'Italian'
+            },
+            'Beef Burger': {
+                'ingredients': ['beef', 'bun', 'lettuce', 'tomato', 'onion', 'cheese', 'ketchup'],
+                'difficulty': 'Easy',
+                'time': '20 minutes',
+                'category': 'American'
+            },
+            'Vegetable Pasta': {
+                'ingredients': ['pasta', 'vegetables', 'olive oil', 'garlic', 'parmesan', 'salt', 'pepper'],
+                'difficulty': 'Easy',
+                'time': '20 minutes',
+                'category': 'Italian'
+            },
+            'Chicken Salad': {
+                'ingredients': ['chicken', 'lettuce', 'tomato', 'cucumber', 'olive oil', 'lemon', 'salt'],
+                'difficulty': 'Easy',
+                'time': '15 minutes',
+                'category': 'Salad'
+            },
+            'Rice and Beans': {
+                'ingredients': ['rice', 'beans', 'onion', 'garlic', 'spices', 'oil', 'salt'],
+                'difficulty': 'Easy',
+                'time': '30 minutes',
+                'category': 'Vegetarian'
+            },
+            'Scrambled Eggs': {
+                'ingredients': ['eggs', 'milk', 'butter', 'salt', 'pepper'],
+                'difficulty': 'Easy',
+                'time': '10 minutes',
+                'category': 'Breakfast'
+            },
+            'Grilled Cheese': {
+                'ingredients': ['bread', 'cheese', 'butter'],
+                'difficulty': 'Easy',
+                'time': '10 minutes',
+                'category': 'Sandwich'
+            },
+            'Fruit Smoothie': {
+                'ingredients': ['banana', 'strawberry', 'milk', 'yogurt', 'honey'],
+                'difficulty': 'Easy',
+                'time': '5 minutes',
+                'category': 'Drink'
+            }
+        }
+        
+        # Collect all grocery items from receipts
+        available_groceries = []
+        grocery_receipts = []
+        
+        for receipt in spend_analysis_agent.sample_data:
+            merchant = receipt['merchantName'].lower()
+            # Check if it's a grocery store
+            if any(grocery in merchant for grocery in ['walmart', 'kroger', 'whole foods', 'trader joe', 'publix', 'safeway', 'albertsons', 'grocery', 'market']):
+                grocery_receipts.append(receipt)
+                for item in receipt.get('items', []):
+                    item_name = item.get('name', '').lower()
+                    available_groceries.append(item_name)
+        
+        if not grocery_receipts:
+            return "🛒 No grocery purchases found. Time to go shopping!"
+        
+        # Analyze which recipes can be made
+        possible_recipes = []
+        
+        for recipe_name, recipe_data in recipes.items():
+            required_ingredients = recipe_data['ingredients']
+            available_count = 0
+            
+            for ingredient in required_ingredients:
+                for grocery in available_groceries:
+                    if ingredient in grocery:
+                        available_count += 1
+                        break
+            
+            # Calculate availability percentage
+            availability_percentage = (available_count / len(required_ingredients)) * 100
+            
+            if availability_percentage >= 60:  # At least 60% of ingredients available
+                possible_recipes.append({
+                    'name': recipe_name,
+                    'availability': availability_percentage,
+                    'difficulty': recipe_data['difficulty'],
+                    'time': recipe_data['time'],
+                    'category': recipe_data['category']
+                })
+        
+        # Sort recipes by availability percentage
+        possible_recipes.sort(key=lambda x: x['availability'], reverse=True)
+        
+        result = f"🍳 **What Can You Cook?**\n"
+        result += f"📦 Found {len(possible_recipes)} recipes from {len(available_groceries)} grocery items\n\n"
+        
+        if not possible_recipes:
+            result += "❌ No recipes found. Buy more ingredients!\n"
+            result += "💡 Try: chicken, rice, vegetables, spices\n"
+        else:
+            # Top 3 recommendations
+            result += "🏆 **Top Recipes:**\n"
+            for i, recipe in enumerate(possible_recipes[:3], 1):
+                status = "🟢" if recipe['availability'] >= 80 else "🟡" if recipe['availability'] >= 70 else "🟠"
+                result += f"   {i}. {status} {recipe['name']} ({recipe['availability']:.0f}%)\n"
+                result += f"      {recipe['time']} | {recipe['difficulty']}\n"
+        
+        return result
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
 # Define the root agent for ADK discovery
 from google.adk.agents import Agent
 
@@ -316,39 +596,35 @@ root_agent = Agent(
 - "Show me all my receipts" → Complete receipt list
 - "Get category breakdown" → Detailed category analysis
 - "Show me top merchants" → Top spending merchants
+- "How much fuel I got in this month?" → Fuel spending analysis for current month
+- "Can I cook biryani with the grocery I have?" → Analyze available ingredients for cooking
+- "What can I cook with my groceries?" → Suggest multiple recipes based on available ingredients
 - "Test database connection" → Check if database is working
 
-**Your Response Style:**
-1. **Warm Greetings**: Start with friendly greetings like "Hello! 👋" or "Hi there! 😊"
-2. **Clear Explanations**: Always explain what you're analyzing and why it's helpful
-3. **Actionable Insights**: Don't just show data - explain what it means for their finances
-4. **Encouraging Tone**: Be positive and supportive of their financial journey
-5. **Educational Value**: Teach financial concepts in simple terms
+**Response Style - Keep it Medium Length:**
+1. **Brief Greeting**: Quick, friendly hello
+2. **Direct Answer**: Get straight to the point with key data
+3. **Essential Insights**: Only the most important findings
+4. **Quick Tips**: 1-2 actionable suggestions max
+5. **Short Closing**: Brief encouragement
 
-**When Providing Analysis:**
-- "Great question! 💰 Let me analyze your spending patterns to help you understand where your money goes."
-- "Excellent! 📊 Understanding your spending by category is key to financial awareness."
-- "Perfect! 📈 Looking at spending trends helps identify patterns and opportunities."
-- "Smart approach! 🛒 Let me search for specific items to reveal spending habits."
-
-**Always Include:**
-- ✅ Friendly, encouraging tone with appropriate emojis
-- ✅ Clear explanations of what the data shows and why it matters
-- ✅ Both USD and INR amounts (properly formatted with currency symbols)
-- ✅ Helpful suggestions for related analyses they might want to try
-- ✅ Educational financial tips when relevant
-- ✅ Celebration of good financial habits when noticed
+**Keep Responses Concise:**
+- ✅ Use bullet points for clarity
+- ✅ Limit to 3-5 key points maximum
+- ✅ Focus on the most important data
+- ✅ Avoid lengthy explanations
+- ✅ Use emojis sparingly but effectively
 
 **Example Response Structure:**
-1. **Warm Greeting** + **Understanding of their request** + **Why this analysis is valuable**
-2. **What you're analyzing** + **Which tool you'll use** + **What insights they'll get**
-3. **Clear data presentation** with **formatted amounts** and **key insights**
-4. **Actionable recommendations** based on the data + **practical next steps**
-5. **Related questions they might want to ask next** + **encouraging closing**
+1. **Quick greeting** + **What you found**
+2. **Key numbers** (amounts, counts, percentages)
+3. **Main insight** (1-2 sentences)
+4. **Quick tip** (1 actionable suggestion)
+5. **Brief closing**
 
-**Remember**: You're a trusted financial advisor who genuinely cares about helping users achieve their financial goals! 🌟
+**Remember**: Be helpful but concise. Users want quick, actionable insights without overwhelming detail! 🌟
 
-Your goal is to make financial analysis feel friendly, accessible, and genuinely helpful while providing immediate, actionable insights! 😊""",
+Your goal is to provide friendly, medium-length responses that give immediate value without being too verbose! 😊""",
     tools=[
         query_by_merchant_tool,
         query_by_category_tool,
@@ -357,6 +633,9 @@ Your goal is to make financial analysis feel friendly, accessible, and genuinely
         search_by_item_name_tool,
         test_connection_tool,
         get_category_breakdown_tool,
-        get_top_merchants_tool
+        get_top_merchants_tool,
+        get_fuel_spending_this_month_tool,
+        can_cook_biryani_with_groceries_tool,
+        what_can_i_cook_with_groceries_tool
     ]
 ) 
